@@ -1,11 +1,14 @@
 package lib
 
 import (
-	"fmt"
+	"context"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
+	"github.com/microsoftgraph/msgraph-sdk-go/me"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"log"
 	"os"
+	"strings"
 )
 
 func CheckError(msg string, err error) {
@@ -16,6 +19,7 @@ func CheckError(msg string, err error) {
 
 type GraphHelper struct {
 	interactiveBrowserCredential *azidentity.InteractiveBrowserCredential
+	graphUserScopes              []string
 	appClient                    *msgraphsdkgo.GraphServiceClient
 }
 
@@ -24,27 +28,30 @@ func NewGraphHelper() *GraphHelper {
 	return g
 }
 
-func (g *GraphHelper) InitializeGraphForAppAuth() error {
+func (g *GraphHelper) InitializeGraphForAppAuth() (models.Userable, error) {
 	clientId := os.Getenv("CLIENT_ID")
 	tenantId := os.Getenv("TENANT_ID")
+	scope := os.Getenv("GRAPH_USER_SCOPES")
+	g.graphUserScopes = strings.Split(scope, ",")
 	cred, err := azidentity.NewInteractiveBrowserCredential(&azidentity.InteractiveBrowserCredentialOptions{
 		TenantID:    tenantId,
 		ClientID:    clientId,
-		RedirectURL: "https://www.google.com/",
+		RedirectURL: "http://localhost:8080/",
 	})
+	CheckError("New Browser Cred Error: ", err)
 	g.interactiveBrowserCredential = cred
-	//CheckError("Error Creating Credentials: ", err)
-	//auth, err := authentication.NewAzureIdentityAuthenticationProviderWithScopes(cred, []string{"Files.Read"})
-	//CheckError("Error authentication provider", err)
-	//adapter, err := msgraphsdkgo.NewGraphRequestAdapter(auth)
-	//CheckError("Error Creating Adapter: ", err)
 
-	// the following block create a new Graph Service Client using the previously created request adapter.
+	query := me.MeRequestBuilderGetQueryParameters{
+		// Only request specific properties
+		Select: []string{"displayName", "mail", "userPrincipalName"},
+	}
 
-	client, err := msgraphsdkgo.NewGraphServiceClientWithCredentials(cred, []string{"User.Read"})
-	CheckError("Client Cred Fail ", err)
-	result, err := client.Me().Get(nil, nil)
-	fmt.Println(result.GetAboutMe())
+	client, err := msgraphsdkgo.NewGraphServiceClientWithCredentials(cred, g.graphUserScopes)
 	g.appClient = client
-	return err
+
+	CheckError("Client Cred Fail ", err)
+	user, err := client.Me().Get(context.Background(), &me.MeRequestBuilderGetRequestConfiguration{
+		QueryParameters: &query,
+	})
+	return user, err
 }

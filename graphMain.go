@@ -20,6 +20,8 @@ func main() {
 }
 
 func initializeGraph(graphHelper *lib.GraphHelper) {
-	err := graphHelper.InitializeGraphForAppAuth()
+	user, err := graphHelper.InitializeGraphForAppAuth()
+	fmt.Println(*user.GetDisplayName())
 	lib.CheckError("Error initializing Graph for app auth: ", err)
+	//fmt.Printf("Hello, %s!\n", *user.GetDisplayName())
 }
