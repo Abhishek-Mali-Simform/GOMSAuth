@@ -2,6 +2,7 @@ package lib
 
 import (
 	"context"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	msgraphsdkgo "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/me"
@@ -28,7 +29,7 @@ func NewGraphHelper() *GraphHelper {
 	return g
 }
 
-func (g *GraphHelper) InitializeGraphForAppAuth() (models.Userable, error) {
+func (g *GraphHelper) InitializeGraphForAppAuth() error {
 	clientId := os.Getenv("CLIENT_ID")
 	tenantId := os.Getenv("TENANT_ID")
 	scope := os.Getenv("GRAPH_USER_SCOPES")
@@ -41,17 +42,37 @@ func (g *GraphHelper) InitializeGraphForAppAuth() (models.Userable, error) {
 	CheckError("New Browser Cred Error: ", err)
 	g.interactiveBrowserCredential = cred
 
+	client, err := msgraphsdkgo.NewGraphServiceClientWithCredentials(cred, g.graphUserScopes)
+	g.appClient = client
+
+	return err
+
+}
+
+// <GetUserTokenSnippet>
+func (g *GraphHelper) GetUserToken() (*string, error) {
+	token, err := g.interactiveBrowserCredential.GetToken(context.Background(), policy.TokenRequestOptions{
+		Scopes: g.graphUserScopes,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &token.Token, nil
+}
+
+// </GetUserTokenSnippet>
+
+// <GetUserSnippet>
+func (g *GraphHelper) GetUser() (models.Userable, error) {
 	query := me.MeRequestBuilderGetQueryParameters{
 		// Only request specific properties
 		Select: []string{"displayName", "mail", "userPrincipalName"},
 	}
-
-	client, err := msgraphsdkgo.NewGraphServiceClientWithCredentials(cred, g.graphUserScopes)
-	g.appClient = client
-
-	CheckError("Client Cred Fail ", err)
-	user, err := client.Me().Get(context.Background(), &me.MeRequestBuilderGetRequestConfiguration{
+	user, err := g.appClient.Me().Get(context.Background(), &me.MeRequestBuilderGetRequestConfiguration{
 		QueryParameters: &query,
 	})
 	return user, err
 }
+
+// </GetUserSnippet>

@@ -16,12 +16,15 @@ func main() {
 	graphHelper := lib.NewGraphHelper()
 	initializeGraph(graphHelper)
 	fmt.Println("Success Login")
-
+	user, err := graphHelper.GetUser()
+	lib.CheckError("Error Getting User: ", err)
+	fmt.Println(*user.GetDisplayName())
+	token, err := graphHelper.GetUserToken()
+	lib.CheckError("Error Getting Token: ", err)
+	fmt.Println(*token)
 }
 
 func initializeGraph(graphHelper *lib.GraphHelper) {
-	user, err := graphHelper.InitializeGraphForAppAuth()
-	fmt.Println(*user.GetDisplayName())
+	err := graphHelper.InitializeGraphForAppAuth()
 	lib.CheckError("Error initializing Graph for app auth: ", err)
-	//fmt.Printf("Hello, %s!\n", *user.GetDisplayName())
 }
